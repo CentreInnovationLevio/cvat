@@ -1,0 +1,40 @@
+os: linux
+dist: focal
+language: generic
+services:
+  - docker
+  
+branches:
+  only:
+    - develop
+    - stable
+
+jobs:
+  include:
+    - stage: deploy-stable-branch
+      language: generic
+      script:
+        - docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
+        # cvat-server
+        - docker image build --build-arg no_proxy=nuclio,${no_proxy} --build-arg USER='django' --build-arg DJANGO_CONFIGURATION='production' --build-arg TZ='Etc/UTC' --build-arg CLAM_AV='no' -f Dockerfile -t leviocil/cvat-server:stable .
+        - docker push leviocil/cvat-server:stable
+        # cvat-ui
+        - docker image build -f Dockerfile.ui -t leviocil/cvat-ui:stable .
+        - docker push leviocil/cvat-ui:stable
+        
+    - stage: deploy-develop-branch
+      language: generic
+      script:
+        - docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
+        # cvat-server
+        - docker image build --build-arg no_proxy=nuclio,${no_proxy} --build-arg USER='django' --build-arg DJANGO_CONFIGURATION='production' --build-arg TZ='Etc/UTC' --build-arg CLAM_AV='no' -f Dockerfile -t leviocil/cvat-server:latest .
+        - docker push leviocil/cvat-server:latest
+        # cvat-ui
+        - docker image build -f Dockerfile.ui -t leviocil/cvat-ui:latest .
+        - docker push leviocil/cvat-ui:latest     
+
+stages:
+  - name: deploy-stable-branch
+    if: "(branch = stable) AND (type IN (push))"
+  - name: deploy-develop-branch
+    if: "(branch = develop) AND (type IN (push))"
